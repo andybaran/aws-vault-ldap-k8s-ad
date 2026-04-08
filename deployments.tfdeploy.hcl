@@ -17,8 +17,11 @@ deployment "development" {
     prefix                          = upstream_input.k8s_foundation.resources_prefix
     allowlist_ip                    = "66.190.197.168/32"
     domain_controller_instance_type = "c5.xlarge"
-    domain_controller_ami_id        = "ami-0538f3e03d5cbff42"
-    full_ui                         = false
+    # The hardened hc-base image currently ships with the Uptycs filter driver,
+    # which is locking ntds.dit during Install-ADDSForest on this demo. Use the
+    # module's standard AWS Windows AMI path for a functional domain controller.
+    domain_controller_ami_id        = "ami-058f0cf1cc0bc26b3"
+    full_ui                         = true
     install_adds                    = true
     install_adcs                    = true
     active_directory_domain         = "mydomain.local"
