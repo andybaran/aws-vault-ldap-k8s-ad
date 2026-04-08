@@ -61,7 +61,7 @@ The deployment publishes only the values needed by downstream stacks:
 - `ldap_binddn`
 - `ldap_userdn`
 - `ldap_bindpass`
-- `static_roles`
+- `static_roles_json`
 
 Operator-facing outputs such as `dc_public_dns`, `dc_elastic_ip`, and `dc_admin_password` remain normal stack outputs and are not published as linked-stack contract values.
 
