@@ -1,6 +1,73 @@
-# Placeholder for Terraform Cloud Stacks deployments.
-#
-# Later work should define:
-# - shared credential varsets
-# - demo deployment inputs
-# - linked-stack attachments to aws-vault-ldap-k8s-k8s
+store varset "aws_creds" {
+  id       = "varset-oUu39eyQUoDbmxE1"
+  category = "env"
+}
+
+upstream_input "k8s_foundation" {
+  type   = "stack"
+  source = "app.terraform.io/andybaran/ldap-stack/aws-vault-ldap-k8s-k8s"
+}
+
+locals {
+  shared_aws_credentials = {
+    AWS_ACCESS_KEY_ID     = store.varset.aws_creds.AWS_ACCESS_KEY_ID
+    AWS_SECRET_ACCESS_KEY = store.varset.aws_creds.AWS_SECRET_ACCESS_KEY
+    AWS_SESSION_TOKEN     = store.varset.aws_creds.AWS_SESSION_TOKEN
+  }
+}
+
+deployment "development" {
+  inputs = merge(local.shared_aws_credentials, {
+    region                          = "us-east-2"
+    vpc_id                          = upstream_input.k8s_foundation.vpc_id
+    subnet_id                       = upstream_input.k8s_foundation.first_public_subnet_id
+    shared_internal_sg_id           = upstream_input.k8s_foundation.shared_internal_sg_id
+    prefix                          = upstream_input.k8s_foundation.resources_prefix
+    allowlist_ip                    = "66.190.197.168/32"
+    domain_controller_instance_type = "c5.xlarge"
+    full_ui                         = false
+    install_adds                    = true
+    install_adcs                    = true
+    active_directory_domain         = "mydomain.local"
+    active_directory_netbios_name   = "mydomain"
+  })
+}
+
+publish_output "dc_private_ip" {
+  type  = string
+  value = deployment.development.dc_private_ip
+}
+
+publish_output "ldap_url" {
+  type  = string
+  value = deployment.development.ldap_url
+}
+
+publish_output "active_directory_domain" {
+  type  = string
+  value = deployment.development.active_directory_domain
+}
+
+publish_output "ldap_binddn" {
+  type  = string
+  value = deployment.development.ldap_binddn
+}
+
+publish_output "ldap_userdn" {
+  type  = string
+  value = deployment.development.ldap_userdn
+}
+
+publish_output "ldap_bindpass" {
+  type  = string
+  value = deployment.development.ldap_bindpass
+}
+
+publish_output "static_roles" {
+  type = map(object({
+    username = string
+    password = string
+    dn       = string
+  }))
+  value = deployment.development.static_roles
+}

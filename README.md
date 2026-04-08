@@ -1,44 +1,77 @@
 # aws-vault-ldap-k8s-ad
 
-Terraform Cloud Stacks scaffold for the Active Directory / LDAP slice of the `aws-vault-ldap-k8s` demo.
+Terraform Cloud Stacks repository for the Active Directory / LDAP slice of the `aws-vault-ldap-k8s` demo.
 
-This repository is intended to own the Windows domain controller, LDAPS prerequisites, and LDAP-facing metadata that Vault will use later for password rotation. It should stay focused on the AD layer; the EKS platform, Vault runtime, and demo application belong in the sibling repos.
+This repo owns the Windows domain controller, AD DS / AD CS setup for LDAP and LDAPS, and the downstream-facing LDAP metadata that Vault will consume later. Networking and shared security groups come from the sibling k8s foundation stack.
 
-## Stack purpose
+## Scope
 
-- provision the demo Active Directory / LDAP foundation on AWS
-- prepare LDAPS connectivity and directory metadata for Vault integration
-- publish AD outputs that downstream stacks can consume through linked stacks
+- provision a Windows Server 2025 domain controller on AWS
+- promote the instance to `mydomain.local` and optionally enable AD CS for LDAPS
+- publish the LDAP connection contract used by downstream Vault stacks
+- keep the split narrowly focused on the AD layer only
 
-## Upstream linked-stack contract
+## Repository layout
 
-Current scaffold assumption: this stack will consume shared network/platform outputs from `aws-vault-ldap-k8s-k8s`.
+- `modules/AWS_DC/` - copied from the source monolith and kept as the local AD module for this split stack
+- `variables.tfcomponent.hcl` - repo-level input contract for the AD stack
+- `providers.tfcomponent.hcl` - AWS, TLS, random, and time provider configuration
+- `components.tfcomponent.hcl` - Active Directory component wiring
+- `outputs.tfcomponent.hcl` - operator-facing stack outputs
+- `deployments.tfdeploy.hcl` - deployment defaults, linked-stack wiring, and published outputs
 
-Planned upstream inputs:
+## Upstream dependency
 
-- VPC and subnet placement for the domain controller
-- shared internal security group or equivalent network attachment details
-- shared naming/prefix metadata for the overall demo
+This stack consumes networking and shared security group data from the k8s foundation stack:
 
-Additional deployment inputs should come from Terraform Cloud Stacks deployment values and varsets, such as `region`, `customer_name`, `user_email`, `allowlist_ip`, and `instance_type`.
+- upstream stack source: `app.terraform.io/andybaran/ldap-stack/aws-vault-ldap-k8s-k8s`
+- shared AWS credentials varset: `varset-oUu39eyQUoDbmxE1`
 
-## Downstream linked-stack contract
+Current deployment wiring assumes the upstream stack publishes the following values, based on the source monolith contract:
 
-Planned outputs for downstream stacks, especially `aws-vault-ldap-k8s-vault`:
+| Upstream published output | Local AD input |
+| --- | --- |
+| `vpc_id` | `vpc_id` |
+| `first_public_subnet_id` | `subnet_id` |
+| `shared_internal_sg_id` | `shared_internal_sg_id` |
+| `resources_prefix` | `prefix` |
 
-- domain controller private IP and public DNS
-- LDAPS endpoint and certificate/bootstrap metadata
-- Active Directory domain naming data (for example bind DN and user DN context)
-- secret references needed to bootstrap Vault's LDAP integration
-- demo service account or static role metadata used by the Vault stack
+## Deployment defaults
 
-## Terraform Cloud Stacks
+The default `development` deployment preserves the source demo behavior where reasonable:
 
-This repo is scaffolded around Terraform Stacks root files:
+| Input | Default |
+| --- | --- |
+| `region` | `us-east-2` |
+| `allowlist_ip` | `66.190.197.168/32` |
+| `domain_controller_instance_type` | `c5.xlarge` |
+| `full_ui` | `false` |
+| `install_adds` | `true` |
+| `install_adcs` | `true` |
+| `active_directory_domain` | `mydomain.local` |
+| `active_directory_netbios_name` | `mydomain` |
 
-- `components.tfcomponent.hcl`
-- `providers.tfcomponent.hcl`
-- `variables.tfcomponent.hcl`
-- `deployments.tfdeploy.hcl`
+## Published downstream outputs
 
-The HCL files are placeholders only. Later todos should replace them with real component wiring, linked-stack attachments, and extracted modules.
+The deployment publishes only the values needed by downstream stacks:
+
+- `dc_private_ip`
+- `ldap_url`
+- `active_directory_domain`
+- `ldap_binddn`
+- `ldap_userdn`
+- `ldap_bindpass`
+- `static_roles`
+
+Operator-facing outputs such as `dc_public_dns`, `dc_elastic_ip`, and `dc_admin_password` remain normal stack outputs and are not published as linked-stack contract values.
+
+## Validation
+
+Run the repository validation commands from the repo root:
+
+```bash
+terraform fmt -recursive
+terraform stacks fmt
+terraform stacks init
+terraform stacks validate
+```
