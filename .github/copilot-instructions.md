@@ -19,7 +19,7 @@ Own the Active Directory / LDAP infrastructure slice of the demo. This repo shou
 
 - Upstream stack source is assumed to be `app.terraform.io/andybaran/ldap stack/aws-vault-ldap-k8s-k8s` unless the repo is updated to a new contract.
 - The deployment currently maps upstream `vpc_id`, `first_public_subnet_id`, `shared_internal_sg_id`, and `resources_prefix` outputs into the local `vpc_id`, `subnet_id`, `shared_internal_sg_id`, and `prefix` inputs.
-- Publish only the downstream values required for Vault/bootstrap consumers: `dc_private_ip`, `ldap_url`, `active_directory_domain`, `ldap_binddn`, `ldap_userdn`, `ldap_bindpass`, and `static_roles_json`.
+- Publish only the downstream values required for Vault/bootstrap consumers: `dc_private_ip`, `ldap_url`, `active_directory_domain`, `ldap_binddn`, `ldap_userdn`, and `ldap_bootstrap_secret_arn`.
 
 ## Guardrails
 

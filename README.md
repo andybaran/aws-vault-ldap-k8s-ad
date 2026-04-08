@@ -60,10 +60,9 @@ The deployment publishes only the values needed by downstream stacks:
 - `active_directory_domain`
 - `ldap_binddn`
 - `ldap_userdn`
-- `ldap_bindpass`
-- `static_roles_json`
+- `ldap_bootstrap_secret_arn`
 
-Operator-facing outputs such as `dc_public_dns`, `dc_elastic_ip`, and `dc_admin_password` remain normal stack outputs and are not published as linked-stack contract values.
+The LDAP bind password, Windows administrator password, and static role seed data are stored in AWS Secrets Manager and exposed through the published `ldap_bootstrap_secret_arn` contract instead of being published directly through HCP Terraform linked outputs.
 
 ## Validation
 

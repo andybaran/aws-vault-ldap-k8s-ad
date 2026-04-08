@@ -36,13 +36,13 @@ output "aws_keypair_name" {
 
 output "static_roles" {
   description = "Test service account usernames and initial passwords for AD integration tests"
-  value = {
-    for name, pw in random_password.test_user_password : name => {
-      username = name
-      password = nonsensitive(pw.result)
-      dn       = "CN=${name},CN=Users,DC=${join(",DC=", split(".", var.active_directory_domain))}"
-    }
-  }
-  sensitive  = false
-  depends_on = [time_sleep.wait_for_dc_reboot]
+  value       = local.static_roles
+  sensitive   = false
+  depends_on  = [time_sleep.wait_for_dc_reboot]
+}
+
+output "ldap_bootstrap_secret_arn" {
+  description = "Secrets Manager ARN containing the LDAP bind password and static role seed data."
+  value       = aws_secretsmanager_secret.ldap_bootstrap.arn
+  depends_on  = [aws_secretsmanager_secret_version.ldap_bootstrap]
 }

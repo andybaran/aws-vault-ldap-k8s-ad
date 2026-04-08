@@ -330,9 +330,33 @@ resource "time_sleep" "wait_for_dc_reboot" {
   create_duration = local.dc_wait_duration
 }
 
+resource "aws_secretsmanager_secret" "ldap_bootstrap" {
+  name        = "${var.prefix}-ldap-bootstrap"
+  description = "Bootstrap LDAP secrets for the Vault split-stack integration."
+}
+
+resource "aws_secretsmanager_secret_version" "ldap_bootstrap" {
+  secret_id     = aws_secretsmanager_secret.ldap_bootstrap.id
+  secret_string = local.ldap_bootstrap_secret_payload
+
+  depends_on = [time_sleep.wait_for_dc_reboot]
+}
+
 locals {
   password = rsadecrypt(aws_instance.domain_controller.password_data, tls_private_key.rsa-4096-key.private_key_pem)
 
   dc_wait_duration = !var.install_adds ? "3m" : (!var.install_adcs ? "7m" : "10m")
-}
 
+  static_roles = {
+    for name, pw in random_password.test_user_password : name => {
+      username = name
+      password = nonsensitive(pw.result)
+      dn       = "CN=${name},CN=Users,DC=${join(",DC=", split(".", var.active_directory_domain))}"
+    }
+  }
+
+  ldap_bootstrap_secret_payload = jsonencode({
+    ldap_bindpass = nonsensitive(local.password)
+    static_roles  = local.static_roles
+  })
+}

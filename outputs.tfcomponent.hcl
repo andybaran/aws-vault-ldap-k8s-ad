@@ -34,21 +34,15 @@ output "ldap_userdn" {
 }
 
 output "ldap_bindpass" {
-  description = "Password for the Administrator bind account after promotion to a domain controller."
+  description = "Secrets Manager ARN containing the LDAP bind password and static role seed data."
   type        = string
-  value       = nonsensitive(component.active_directory.password)
-}
-
-output "static_roles_json" {
-  description = "JSON-encoded demo LDAP service accounts and passwords for downstream Vault role configuration."
-  type        = string
-  value       = nonsensitive(jsonencode(component.active_directory.static_roles))
+  value       = component.active_directory.ldap_bootstrap_secret_arn
 }
 
 output "static_roles" {
-  description = "Compatibility alias for the JSON-encoded demo LDAP service account payload."
+  description = "Compatibility alias for the Secrets Manager ARN containing the LDAP bootstrap payload."
   type        = string
-  value       = nonsensitive(jsonencode(component.active_directory.static_roles))
+  value       = component.active_directory.ldap_bootstrap_secret_arn
 }
 
 output "dc_public_dns" {
@@ -64,7 +58,13 @@ output "dc_elastic_ip" {
 }
 
 output "dc_admin_password" {
-  description = "Administrator password for the Windows domain controller instance."
+  description = "Secrets Manager ARN containing the Windows administrator password and LDAP bootstrap payload."
   type        = string
-  value       = nonsensitive(component.active_directory.password)
+  value       = component.active_directory.ldap_bootstrap_secret_arn
+}
+
+output "ldap_bootstrap_secret_arn" {
+  description = "Secrets Manager ARN containing the LDAP bind password and static role seed data."
+  type        = string
+  value       = component.active_directory.ldap_bootstrap_secret_arn
 }

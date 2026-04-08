@@ -49,10 +49,6 @@ publish_output "ldap_userdn" {
   value = deployment.development.ldap_userdn
 }
 
-publish_output "ldap_bindpass" {
-  value = nonsensitive(deployment.development.ldap_bindpass)
-}
-
-publish_output "static_roles_json" {
-  value = deployment.development.static_roles_json
+publish_output "ldap_bootstrap_secret_arn" {
+  value = deployment.development.ldap_bootstrap_secret_arn
 }
