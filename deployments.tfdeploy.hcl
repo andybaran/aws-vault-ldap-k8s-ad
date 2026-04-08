@@ -17,6 +17,7 @@ deployment "development" {
     prefix                          = upstream_input.k8s_foundation.resources_prefix
     allowlist_ip                    = "66.190.197.168/32"
     domain_controller_instance_type = "c5.xlarge"
+    domain_controller_ami_id        = "ami-0538f3e03d5cbff42"
     full_ui                         = false
     install_adds                    = true
     install_adcs                    = true

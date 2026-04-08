@@ -5,6 +5,7 @@ component "active_directory" {
     allowlist_ip                    = var.allowlist_ip
     vpc_id                          = var.vpc_id
     subnet_id                       = var.subnet_id
+    ami                             = var.domain_controller_ami_id
     domain_controller_instance_type = var.domain_controller_instance_type
     shared_internal_sg_id           = var.shared_internal_sg_id
     prefix                          = var.prefix

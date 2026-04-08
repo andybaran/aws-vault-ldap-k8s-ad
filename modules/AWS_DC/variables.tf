@@ -17,8 +17,8 @@ variable "aws_key_pair_name" {
 
 variable "ami" {
   type        = string
-  description = "The AMI to use for the windows instances."
-  default     = "ami-08f787888f20cc63c"
+  description = "Optional AMI override for the domain controller instance. When null, selects the default image for the chosen UI mode."
+  default     = null
 }
 
 variable "domain_controller_instance_type" {

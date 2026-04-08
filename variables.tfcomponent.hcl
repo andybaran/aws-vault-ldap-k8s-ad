@@ -36,6 +36,12 @@ variable "domain_controller_instance_type" {
   default     = "c5.xlarge"
 }
 
+variable "domain_controller_ami_id" {
+  description = "Optional AMI override for the domain controller. Use to pin a known-good image when the default hc-base image regresses."
+  type        = string
+  default     = null
+}
+
 variable "full_ui" {
   description = "When true, use the Windows Server Desktop Experience AMI instead of the hardened Server Core AMI."
   type        = bool
