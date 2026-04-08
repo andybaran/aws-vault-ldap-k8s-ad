@@ -270,16 +270,28 @@ resource "aws_instance" "domain_controller" {
 
                       Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Lsa\MSV1_0" -Name "AuditReceivingNTLMTraffic" -Value 1
 
-                      # Disable Defender real-time protection during AD DS promotion to prevent
-                      # JET_errFileNotFound -1032 caused by Defender locking ntds.dit during creation.
-                      # Defender re-enables automatically after the post-promotion reboot.
-                      Write-Output "Disabling Defender real-time protection for AD DS promotion..."
-                      Set-MpPreference -DisableRealtimeMonitoring $true -ErrorAction SilentlyContinue
-                      # Start-Sleep -Seconds 5
+                      # Prepare explicit NTDS/SYSVOL paths and add Defender exclusions before
+                      # promotion. On the Windows Server 2025 AMI, Install-ADDSForest has been
+                      # observed to fail with JET error -1032 when ntds.dit is scanned during
+                      # initial creation.
+                      $ntdsPath = "C:\Windows\NTDS"
+                      $sysvolPath = "C:\Windows\SYSVOL"
+                      New-Item -Path $ntdsPath -ItemType Directory -Force | Out-Null
+                      New-Item -Path $sysvolPath -ItemType Directory -Force | Out-Null
+
+                      Write-Output "Adding Defender exclusions for AD DS database paths..."
+                      foreach ($path in @($ntdsPath, $sysvolPath, "$ntdsPath\ntds.dit")) {
+                        Add-MpPreference -ExclusionPath $path -ErrorAction SilentlyContinue
+                      }
+                      Add-MpPreference -ExclusionProcess "lsass.exe" -ErrorAction SilentlyContinue
+
+                      Write-Output "Disabling Defender real-time protections during AD DS promotion..."
+                      Set-MpPreference -DisableRealtimeMonitoring $true -DisableBehaviorMonitoring $true -DisableIOAVProtection $true -DisableScriptScanning $true -ErrorAction SilentlyContinue
+                      Start-Sleep -Seconds 15
 
                       Write-Output "Promoting to domain controller (domain: ${var.active_directory_domain})..."
                       $password = ConvertTo-SecureString ${random_string.DSRMPassword.result} -AsPlainText -Force
-                      Install-ADDSForest -CreateDnsDelegation:$false -DomainMode WinThreshold -DomainName ${var.active_directory_domain} -DomainNetbiosName ${var.active_directory_netbios_name} -ForestMode WinThreshold -InstallDns:$true -SafeModeAdministratorPassword $password -Force:$true 2>&1
+                      Install-ADDSForest -CreateDnsDelegation:$false -DomainMode WinThreshold -DomainName ${var.active_directory_domain} -DomainNetbiosName ${var.active_directory_netbios_name} -ForestMode WinThreshold -InstallDns:$true -DatabasePath $ntdsPath -LogPath $ntdsPath -SysvolPath $sysvolPath -SafeModeAdministratorPassword $password -Force:$true 2>&1
                       Write-Output "Install-ADDSForest completed (system will reboot automatically)"
 %{else}
                       Write-Output "AD DS installation skipped (install_adds = false) — running as plain Windows Server"
