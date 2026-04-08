@@ -5,7 +5,7 @@ store varset "aws_creds" {
 
 upstream_input "k8s_foundation" {
   type   = "stack"
-  source = "app.terraform.io/andybaran/ldap-stack/aws-vault-ldap-k8s-k8s"
+  source = "app.terraform.io/andybaran/ldap stack/aws-vault-ldap-k8s-k8s"
 }
 
 locals {
@@ -20,7 +20,7 @@ deployment "development" {
   inputs = merge(local.shared_aws_credentials, {
     region                          = "us-east-2"
     vpc_id                          = upstream_input.k8s_foundation.vpc_id
-    subnet_id                       = upstream_input.k8s_foundation.first_public_subnet_id
+    subnet_id                       = upstream_input.k8s_foundation.public_subnet_id
     shared_internal_sg_id           = upstream_input.k8s_foundation.shared_internal_sg_id
     prefix                          = upstream_input.k8s_foundation.resources_prefix
     allowlist_ip                    = "66.190.197.168/32"
