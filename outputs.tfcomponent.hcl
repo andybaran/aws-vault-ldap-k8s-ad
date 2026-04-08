@@ -36,19 +36,13 @@ output "ldap_userdn" {
 output "ldap_bindpass" {
   description = "Password for the Administrator bind account after promotion to a domain controller."
   type        = string
-  sensitive   = true
-  value       = component.active_directory.password
+  value       = nonsensitive(component.active_directory.password)
 }
 
-output "static_roles" {
-  description = "Demo LDAP service accounts and passwords for downstream Vault role configuration."
-  type = map(object({
-    username = string
-    password = string
-    dn       = string
-  }))
-  sensitive = true
-  value     = component.active_directory.static_roles
+output "static_roles_json" {
+  description = "JSON-encoded demo LDAP service accounts and passwords for downstream Vault role configuration."
+  type        = string
+  value       = nonsensitive(jsonencode(component.active_directory.static_roles))
 }
 
 output "dc_public_dns" {
@@ -66,6 +60,5 @@ output "dc_elastic_ip" {
 output "dc_admin_password" {
   description = "Administrator password for the Windows domain controller instance."
   type        = string
-  sensitive   = true
-  value       = component.active_directory.password
+  value       = nonsensitive(component.active_directory.password)
 }

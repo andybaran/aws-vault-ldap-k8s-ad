@@ -54,5 +54,5 @@ publish_output "ldap_bindpass" {
 }
 
 publish_output "static_roles_json" {
-  value = nonsensitive(jsonencode(deployment.development.static_roles))
+  value = deployment.development.static_roles_json
 }
