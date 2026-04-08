@@ -34,40 +34,29 @@ deployment "development" {
 }
 
 publish_output "dc_private_ip" {
-  type  = string
   value = deployment.development.dc_private_ip
 }
 
 publish_output "ldap_url" {
-  type  = string
   value = deployment.development.ldap_url
 }
 
 publish_output "active_directory_domain" {
-  type  = string
   value = deployment.development.active_directory_domain
 }
 
 publish_output "ldap_binddn" {
-  type  = string
   value = deployment.development.ldap_binddn
 }
 
 publish_output "ldap_userdn" {
-  type  = string
   value = deployment.development.ldap_userdn
 }
 
 publish_output "ldap_bindpass" {
-  type  = string
   value = deployment.development.ldap_bindpass
 }
 
 publish_output "static_roles" {
-  type = map(object({
-    username = string
-    password = string
-    dn       = string
-  }))
   value = deployment.development.static_roles
 }
