@@ -45,6 +45,12 @@ output "static_roles_json" {
   value       = nonsensitive(jsonencode(component.active_directory.static_roles))
 }
 
+output "static_roles" {
+  description = "Compatibility alias for the JSON-encoded demo LDAP service account payload."
+  type        = string
+  value       = nonsensitive(jsonencode(component.active_directory.static_roles))
+}
+
 output "dc_public_dns" {
   description = "Public DNS name of the domain controller Elastic IP."
   type        = string
