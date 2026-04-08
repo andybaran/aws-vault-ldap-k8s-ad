@@ -50,7 +50,7 @@ publish_output "ldap_userdn" {
 }
 
 publish_output "ldap_bindpass" {
-  value = deployment.development.ldap_bindpass
+  value = nonsensitive(deployment.development.ldap_bindpass)
 }
 
 publish_output "static_roles_json" {
