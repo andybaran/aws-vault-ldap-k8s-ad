@@ -8,16 +8,8 @@ upstream_input "k8s_foundation" {
   source = "app.terraform.io/andybaran/ldap stack/aws-vault-ldap-k8s-k8s"
 }
 
-locals {
-  shared_aws_credentials = {
-    AWS_ACCESS_KEY_ID     = store.varset.aws_creds.AWS_ACCESS_KEY_ID
-    AWS_SECRET_ACCESS_KEY = store.varset.aws_creds.AWS_SECRET_ACCESS_KEY
-    AWS_SESSION_TOKEN     = store.varset.aws_creds.AWS_SESSION_TOKEN
-  }
-}
-
 deployment "development" {
-  inputs = merge(local.shared_aws_credentials, {
+  inputs = {
     region                          = "us-east-2"
     vpc_id                          = upstream_input.k8s_foundation.vpc_id
     subnet_id                       = upstream_input.k8s_foundation.public_subnet_id
@@ -30,7 +22,11 @@ deployment "development" {
     install_adcs                    = true
     active_directory_domain         = "mydomain.local"
     active_directory_netbios_name   = "mydomain"
-  })
+
+    AWS_ACCESS_KEY_ID     = store.varset.aws_creds.AWS_ACCESS_KEY_ID
+    AWS_SECRET_ACCESS_KEY = store.varset.aws_creds.AWS_SECRET_ACCESS_KEY
+    AWS_SESSION_TOKEN     = store.varset.aws_creds.AWS_SESSION_TOKEN
+  }
 }
 
 publish_output "dc_private_ip" {
