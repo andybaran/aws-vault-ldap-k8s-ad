@@ -192,27 +192,63 @@ resource "aws_instance" "domain_controller" {
                         Restart-Service NTDS -Force
                         Write-Output "AD CS configured and NTDS restarted"
 
-                        # Wait for ADWS to be ready before using AD PowerShell module
-                        Write-Output "Waiting for Active Directory Web Services (ADWS) to start..."
-                        $timeout = 120; $elapsed = 0
+                        # Wait for the directory services and LDAP listeners to be ready
+                        # after promotion and the NTDS restart from AD CS configuration.
+                        $usersContainerDn = "CN=Users,DC=${join(",DC=", split(".", var.active_directory_domain))}"
+                        $usersContainerPath = "LDAP://$${usersContainerDn}"
+                        $requiredServices = @("NTDS", "DNS", "Netlogon")
+%{if var.install_adcs}
+                        $requiredServices += "CertSvc"
+%{endif}
+                        Write-Output "Waiting for directory services to become ready..."
+                        $usersContainer = $null
+                        $directoryReady = $false
+                        $directoryReadyTimeout = 300
+                        $directoryReadyElapsed = 0
                         do {
-                          Start-Sleep 5; $elapsed += 5
-                          $adws = Get-Service ADWS -ErrorAction SilentlyContinue
-                          Write-Output "ADWS status: $($adws.Status) ($${elapsed}s elapsed)"
-                        } while (($adws.Status -ne 'Running') -and ($elapsed -lt $timeout))
-                        if ($adws.Status -ne 'Running') {
-                          Start-Service ADWS -ErrorAction SilentlyContinue
-                          Start-Sleep 10
+                          $notReadyServices = @()
+                          foreach ($serviceName in $requiredServices) {
+                            $svc = Get-Service -Name $serviceName -ErrorAction SilentlyContinue
+                            if (($null -eq $svc) -or ($svc.Status -ne "Running")) {
+                              $notReadyServices += $serviceName
+                            }
+                          }
+                          $ldapListening = @(Get-NetTCPConnection -State Listen -LocalPort 389 -ErrorAction SilentlyContinue).Count -gt 0
+%{if var.install_adcs}
+                          $ldapsListening = @(Get-NetTCPConnection -State Listen -LocalPort 636 -ErrorAction SilentlyContinue).Count -gt 0
+%{else}
+                          $ldapsListening = $true
+%{endif}
+                          if (($notReadyServices.Count -eq 0) -and $ldapListening -and $ldapsListening) {
+                            try {
+                              $usersContainer = [ADSI]$usersContainerPath
+                              $null = $usersContainer.distinguishedName
+                              $directoryReady = $true
+                            } catch {
+                              Write-Output "Directory bind not ready at $${usersContainerPath}: $_"
+                            }
+                          }
+                          if (-not $directoryReady) {
+                            Write-Output "Directory services not ready yet: services=$($notReadyServices -join ',') ldap389=$ldapListening ldaps636=$ldapsListening"
+                            Start-Sleep 10
+                            $directoryReadyElapsed += 10
+                          }
+                        } while ((-not $directoryReady) -and ($directoryReadyElapsed -lt $directoryReadyTimeout))
+                        if (-not $directoryReady) {
+                          throw "Directory services did not become ready after $${directoryReadyTimeout}s"
                         }
+                        Write-Output "Directory bind ready at $${usersContainerPath}"
                       }
 %{else}
                       Write-Output "AD CS installation skipped (install_adcs = false) — LDAPS on port 636 will not be available"
 %{endif}
 
                       # Create test service accounts for integration testing
-                      Write-Output "Importing ActiveDirectory module..."
-                      Import-Module ActiveDirectory -ErrorAction Stop
-                      Write-Output "ActiveDirectory module imported"
+                      if ($null -eq $usersContainer) {
+                        $usersContainerDn = "CN=Users,DC=${join(",DC=", split(".", var.active_directory_domain))}"
+                        $usersContainerPath = "LDAP://$${usersContainerDn}"
+                        $usersContainer = [ADSI]$usersContainerPath
+                      }
 
                       $testUsers = @{
                         "svc-rotate-a" = "${random_password.test_user_password["svc-rotate-a"].result}"
@@ -226,19 +262,41 @@ resource "aws_instance" "domain_controller" {
                       }
                       foreach ($user in $testUsers.GetEnumerator()) {
                         try {
-                          if (-not (Get-ADUser -Filter "sAMAccountName -eq '$($user.Key)'" -ErrorAction SilentlyContinue)) {
-                            $secPw = ConvertTo-SecureString $user.Value -AsPlainText -Force
-                            New-ADUser -Name $user.Key `
-                              -SamAccountName $user.Key `
-                              -UserPrincipalName "$($user.Key)@${var.active_directory_domain}" `
-                              -AccountPassword $secPw `
-                              -Enabled $true `
-                              -PasswordNeverExpires $true `
-                              -CannotChangePassword $false `
-                              -Path "CN=Users,DC=${join(",DC=", split(".", var.active_directory_domain))}"
-                            Write-Output "Created user: $($user.Key)"
-                          } else {
-                            Write-Output "User already exists: $($user.Key)"
+                          $userProcessed = $false
+                          for ($attempt = 0; ($attempt -lt 12) -and (-not $userProcessed); $attempt++) {
+                            try {
+                              $userPath = "LDAP://CN=$($user.Key),$${usersContainerDn}"
+                              $entryExists = $false
+                              try {
+                                $userEntry = [ADSI]$userPath
+                                $null = $userEntry.distinguishedName
+                                $entryExists = $true
+                              } catch {
+                                $userEntry = $usersContainer.Create("user", "CN=$($user.Key)")
+                                $userEntry.Put("sAMAccountName", $user.Key)
+                                $userEntry.Put("userPrincipalName", "$($user.Key)@${var.active_directory_domain}")
+                                $userEntry.SetInfo()
+                              }
+                              $userEntry.Invoke("SetPassword", $user.Value)
+                              $userEntry.Put("userAccountControl", 66048)
+                              $userEntry.Put("pwdLastSet", -1)
+                              $userEntry.SetInfo()
+                              if ($entryExists) {
+                                Write-Output "User already exists: $($user.Key)"
+                              } else {
+                                Write-Output "Created user: $($user.Key)"
+                              }
+                              $userProcessed = $true
+                            } catch {
+                              if ($attempt -ge 11) {
+                                throw
+                              }
+                              Write-Output "Retrying user $($user.Key) after directory error: $_"
+                              Start-Sleep 10
+                            }
+                          }
+                          if (-not $userProcessed) {
+                            throw "Failed to create or update user $($user.Key)"
                           }
                         } catch {
                           Write-Output "ERROR creating user $($user.Key): $_"
